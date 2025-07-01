@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -10,17 +11,14 @@
       padding: 0;
       background: #FCEEF5;
     }
-
     .container {
       display: flex;
       padding: 30px;
       gap: 20px;
     }
-
     .left {
       flex: 1;
     }
-
     .right {
       width: 250px;
       background: #fff0f5;
@@ -29,7 +27,6 @@
       border-radius: 10px;
       height: fit-content;
     }
-
     .section {
       background-color: #ffffffcc;
       padding: 20px;
@@ -37,8 +34,7 @@
       margin-bottom: 20px;
       box-shadow: 0 4px 8px rgba(255, 128, 171, 0.2);
     }
-
-    input, button {
+    input, button, select {
       margin: 8px 0;
       padding: 8px;
       width: 100%;
@@ -46,7 +42,6 @@
       border: 1px solid #ffb6c1;
       border-radius: 6px;
     }
-
     button {
       background-color: #ff99bb;
       color: white;
@@ -54,43 +49,35 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-
     button:hover {
       background-color: #ff6fa1;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 15px;
     }
-
     th, td {
       border: 1px solid #ffccdd;
       padding: 8px;
       text-align: center;
     }
-
     th {
       background-color: #ffe1ec;
     }
-
     label {
       font-weight: bold;
     }
-
     h2 {
       text-align: center;
       color: #d63384;
       margin-top: 30px;
     }
-
     .right ul {
       list-style: none;
       padding: 0;
       margin-bottom: 10px;
     }
-
     .right li {
       margin-bottom: 5px;
       background: #ffe6f0;
@@ -100,7 +87,6 @@
       justify-content: space-between;
       align-items: center;
     }
-
     .right li button {
       width: auto;
       padding: 2px 8px;
@@ -114,20 +100,17 @@
 </head>
 <body>
   <h2>💸 SM TEAM</h2>
-
   <div class="container">
-    <!-- LEFT SIDE -->
     <div class="left">
       <div class="section" id="transactionSection" style="display:none;">
-        <label>Ai đã trả tiền? (nhập số tiền):</label>
-        <div id="payerInputs"></div>
-
-        <label>Ai tham gia chia? (tick chọn):</label>
-        <div id="splitCheckboxes"></div>
-
+        <label>Ai đã trả tiền?</label>
+        <select id="selectedPayer"></select>
+        <label>Số tiền đã trả (VNĐ):</label>
+        <input type="number" id="paidAmount" placeholder="0">
+        <label>Nhập số tiền từng người tham gia chia:</label>
+        <div id="splitInputs"></div>
         <button onclick="submitTransaction()">➕ Thêm lần chia tiền</button>
       </div>
-
       <div class="section">
         <h3>📊 Bảng tổng kết</h3>
         <table id="summaryTable">
@@ -143,8 +126,6 @@
         </table>
       </div>
     </div>
-
-    <!-- RIGHT SIDE -->
     <div class="right">
       <label>Thành viên trong nhóm:</label>
       <ul id="memberList"></ul>
@@ -168,7 +149,7 @@
         members = JSON.parse(saved);
         paid = savedPaid ? JSON.parse(savedPaid) : {};
         owed = savedOwed ? JSON.parse(savedOwed) : {};
-        saveMembers(); // Gọi để dựng lại giao diện
+        saveMembers();
       }
     };
 
@@ -221,59 +202,69 @@
     }
 
     function showTransactionForm() {
-      document.getElementById("transactionSection").style.display = members.length > 0 ? "block" : "none";
+      const section = document.getElementById("transactionSection");
+      section.style.display = members.length > 0 ? "block" : "none";
 
-      const payerDiv = document.getElementById("payerInputs");
-      const splitDiv = document.getElementById("splitCheckboxes");
+      const payerSelect = document.getElementById("selectedPayer");
+      const splitDiv = document.getElementById("splitInputs");
 
-      payerDiv.innerHTML = "";
+      payerSelect.innerHTML = `<option value="">-- Chọn người trả --</option>`;
       splitDiv.innerHTML = "";
 
       members.forEach(name => {
-        payerDiv.innerHTML += `
-          <label>${name} đã trả (VNĐ):</label>
-          <input type="number" id="payer-${name}" placeholder="0">
-        `;
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        payerSelect.appendChild(option);
+
         splitDiv.innerHTML += `
-          <label><input type="checkbox" id="split-${name}"> ${name}</label><br>
+          <label>${name} phải trả (VNĐ):</label>
+          <input type="number" id="split-${name}" placeholder="0">
         `;
       });
     }
 
     function submitTransaction() {
-      let currentPaid = {};
-      let participants = [];
-      let total = 0;
+      const payer = document.getElementById("selectedPayer").value;
+      const amount = parseFloat(document.getElementById("paidAmount").value) || 0;
 
+      const participants = [];
+      let totalSplit = 0;
       members.forEach(name => {
-        const paidVal = parseFloat(document.getElementById(`payer-${name}`).value) || 0;
-        const checked = document.getElementById(`split-${name}`).checked;
-        currentPaid[name] = paidVal;
-        total += paidVal;
-        if (checked) participants.push(name);
+        const value = parseFloat(document.getElementById(`split-${name}`).value);
+        if (value > 0) {
+          participants.push({ name: name, amount: value });
+          totalSplit += value;
+        }
       });
 
-      if (participants.length === 0) {
-        alert("Vui lòng chọn ít nhất một người tham gia.");
+      if (!payer || amount <= 0) {
+        alert("Vui lòng chọn người trả và nhập số tiền hợp lệ.");
         return;
       }
 
-      const perPerson = total / participants.length;
+      if (participants.length === 0) {
+        alert("Vui lòng nhập số tiền cho ít nhất một người tham gia chia.");
+        return;
+      }
 
-      participants.forEach(name => {
-        owed[name] = (owed[name] || 0) + perPerson;
-      });
+      if (Math.abs(totalSplit - amount) > 0.01) {
+        alert("Tổng số tiền chia không khớp với số tiền đã trả.");
+        return;
+      }
 
-      members.forEach(name => {
-        paid[name] = (paid[name] || 0) + currentPaid[name];
+      paid[payer] = (paid[payer] || 0) + amount;
+      participants.forEach(p => {
+        owed[p.name] = (owed[p.name] || 0) + p.amount;
       });
 
       localStorage.setItem("paid", JSON.stringify(paid));
       localStorage.setItem("owed", JSON.stringify(owed));
 
+      document.getElementById("paidAmount").value = "";
+      document.getElementById("selectedPayer").value = "";
       members.forEach(name => {
-        document.getElementById(`payer-${name}`).value = "";
-        document.getElementById(`split-${name}`).checked = false;
+        document.getElementById(`split-${name}`).value = "";
       });
 
       updateTable();

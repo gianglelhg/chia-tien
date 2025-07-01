@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>SM TEAM</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #FCEEF5;
+    }
+
+    .container {
+      display: flex;
+      padding: 30px;
+      gap: 20px;
+    }
+
+    .left {
+      flex: 1;
+    }
+
+    .right {
+      width: 250px;
+      background: #fff0f5;
+      padding: 15px;
+      border: 2px dashed #ff8eb5;
+      border-radius: 10px;
+      height: fit-content;
+    }
+
+    .section {
+      background-color: #ffffffcc;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 8px rgba(255, 128, 171, 0.2);
+    }
+
+    input, button {
+      margin: 8px 0;
+      padding: 8px;
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ffb6c1;
+      border-radius: 6px;
+    }
+
+    button {
+      background-color: #ff99bb;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #ff6fa1;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th, td {
+      border: 1px solid #ffccdd;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #ffe1ec;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    h2 {
+      text-align: center;
+      color: #d63384;
+      margin-top: 30px;
+    }
+
+    .right ul {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 10px;
+    }
+
+    .right li {
+      margin-bottom: 5px;
+      background: #ffe6f0;
+      padding: 6px 8px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .right li button {
+      width: auto;
+      padding: 2px 8px;
+      background: red;
+      color: white;
+      border: none;
+      font-weight: bold;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h2>💸 SM TEAM</h2>
+
+  <div class="container">
+    <!-- LEFT SIDE -->
+    <div class="left">
+      <div class="section" id="transactionSection" style="display:none;">
+        <label>Ai đã trả tiền? (nhập số tiền):</label>
+        <div id="payerInputs"></div>
+
+        <label>Ai tham gia chia? (tick chọn):</label>
+        <div id="splitCheckboxes"></div>
+
+        <button onclick="submitTransaction()">➕ Thêm lần chia tiền</button>
+      </div>
+
+      <div class="section">
+        <h3>📊 Bảng tổng kết</h3>
+        <table id="summaryTable">
+          <thead>
+            <tr>
+              <th>Thành viên</th>
+              <th>Đã trả (VNĐ)</th>
+              <th>Phải trả (VNĐ)</th>
+              <th>Chênh lệch</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right">
+      <label>Thành viên trong nhóm:</label>
+      <ul id="memberList"></ul>
+      <input type="text" id="newMemberInput" placeholder="Tên thành viên mới">
+      <button onclick="addMember()">➕ Thêm thành viên</button>
+      <button onclick="resetAll()">🗑️ Xóa toàn bộ dữ liệu</button>
+    </div>
+  </div>
+
+  <script>
+    let members = [];
+    let paid = {};
+    let owed = {};
+
+    window.onload = () => {
+      const saved = localStorage.getItem("members");
+      const savedPaid = localStorage.getItem("paid");
+      const savedOwed = localStorage.getItem("owed");
+
+      if (saved) {
+        members = JSON.parse(saved);
+        paid = savedPaid ? JSON.parse(savedPaid) : {};
+        owed = savedOwed ? JSON.parse(savedOwed) : {};
+        saveMembers(); // Gọi để dựng lại giao diện
+      }
+    };
+
+    function saveMembers() {
+      updateMemberUI();
+      showTransactionForm();
+      updateTable();
+    }
+
+    function updateMemberUI() {
+      const list = document.getElementById("memberList");
+      list.innerHTML = "";
+      members.forEach((name, index) => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          ${name}
+          <button onclick="removeMember(${index})">X</button>
+        `;
+        list.appendChild(li);
+      });
+
+      localStorage.setItem("members", JSON.stringify(members));
+      localStorage.setItem("paid", JSON.stringify(paid));
+      localStorage.setItem("owed", JSON.stringify(owed));
+    }
+
+    function addMember() {
+      const input = document.getElementById("newMemberInput");
+      const name = input.value.trim();
+      if (!name) return alert("Vui lòng nhập tên.");
+      if (members.includes(name)) return alert("Tên đã tồn tại.");
+
+      members.push(name);
+      paid[name] = 0;
+      owed[name] = 0;
+      input.value = "";
+
+      saveMembers();
+    }
+
+    function removeMember(index) {
+      const name = members[index];
+      if (!confirm(`Bạn có chắc muốn xóa "${name}"?`)) return;
+
+      members.splice(index, 1);
+      delete paid[name];
+      delete owed[name];
+
+      saveMembers();
+    }
+
+    function showTransactionForm() {
+      document.getElementById("transactionSection").style.display = members.length > 0 ? "block" : "none";
+
+      const payerDiv = document.getElementById("payerInputs");
+      const splitDiv = document.getElementById("splitCheckboxes");
+
+      payerDiv.innerHTML = "";
+      splitDiv.innerHTML = "";
+
+      members.forEach(name => {
+        payerDiv.innerHTML += `
+          <label>${name} đã trả (VNĐ):</label>
+          <input type="number" id="payer-${name}" placeholder="0">
+        `;
+        splitDiv.innerHTML += `
+          <label><input type="checkbox" id="split-${name}"> ${name}</label><br>
+        `;
+      });
+    }
+
+    function submitTransaction() {
+      let currentPaid = {};
+      let participants = [];
+      let total = 0;
+
+      members.forEach(name => {
+        const paidVal = parseFloat(document.getElementById(`payer-${name}`).value) || 0;
+        const checked = document.getElementById(`split-${name}`).checked;
+        currentPaid[name] = paidVal;
+        total += paidVal;
+        if (checked) participants.push(name);
+      });
+
+      if (participants.length === 0) {
+        alert("Vui lòng chọn ít nhất một người tham gia.");
+        return;
+      }
+
+      const perPerson = total / participants.length;
+
+      participants.forEach(name => {
+        owed[name] = (owed[name] || 0) + perPerson;
+      });
+
+      members.forEach(name => {
+        paid[name] = (paid[name] || 0) + currentPaid[name];
+      });
+
+      localStorage.setItem("paid", JSON.stringify(paid));
+      localStorage.setItem("owed", JSON.stringify(owed));
+
+      members.forEach(name => {
+        document.getElementById(`payer-${name}`).value = "";
+        document.getElementById(`split-${name}`).checked = false;
+      });
+
+      updateTable();
+    }
+
+    function updateTable() {
+      const tbody = document.querySelector("#summaryTable tbody");
+      tbody.innerHTML = "";
+      members.forEach(name => {
+        const pay = paid[name] || 0;
+        const owe = owed[name] || 0;
+        const diff = pay - owe;
+        const color = diff > 0 ? "green" : diff < 0 ? "red" : "black";
+        const row = `
+          <tr>
+            <td>${name}</td>
+            <td>${pay.toLocaleString()} đ</td>
+            <td>${owe.toLocaleString()} đ</td>
+            <td style="color:${color}">${diff > 0 ? "+" : ""}${diff.toLocaleString()} đ</td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+    }
+
+    function resetAll() {
+      if (confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu?")) {
+        localStorage.clear();
+        location.reload();
+      }
+    }
+  </script>
+</body>
+</html>
